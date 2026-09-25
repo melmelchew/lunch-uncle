@@ -27,13 +27,13 @@ async function handleChat(request, env) {
     return json({ error: "Body must be JSON" }, 400);
   }
 
-  const { history = [], message } = body;
+  const { history = [], message, conversationId } = body;
   if (typeof message !== "string" || message.trim() === "") {
     return json({ error: "message is required" }, 400);
   }
 
   try {
-    const reply = await runLoop(history, message, env);
+    const reply = await runLoop(history, message, env, conversationId);
     return json({ reply });
   } catch (err) {
     console.error("chat failed:", err);

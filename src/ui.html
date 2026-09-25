@@ -48,6 +48,8 @@
 
     // Conversation so far, in the shape the /chat endpoint expects.
     const history = [];
+    // One id for this page's conversation, so the model provider can reuse its cache.
+    const conversationId = crypto.randomUUID();
 
     function addBubble(role, text) {
       const div = document.createElement("div");
@@ -72,13 +74,15 @@
         const res = await fetch("/chat", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ history, message }),
+          body: JSON.stringify({ history, message, conversationId }),
         });
         const data = await res.json();
-        const reply = data.reply ?? data.error ?? "No reply.";
-        thinking.textContent = reply;
-        history.push({ role: "user", content: message });
-        history.push({ role: "assistant", content: reply });
+        thinking.textContent = data.reply ?? data.error ?? "No reply.";
+        // Only keep real replies, so errors are not sent back to the model.
+        if (data.reply) {
+          history.push({ role: "user", content: message });
+          history.push({ role: "assistant", content: data.reply });
+        }
       } catch (err) {
         thinking.textContent = "Cannot reach Uncle. Try again.";
       } finally {

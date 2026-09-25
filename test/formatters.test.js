@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import {
   CT_HUB_2,
   formatPlaces,
+  formatPriceLevel,
+  formatPriceRange,
+  formatReviewSnippets,
   formatForecast,
   formatBusArrivals,
   haversineMetres,
@@ -85,4 +88,44 @@ test("formatPlaces measures distance from CT Hub 2 and reports open_now", () => 
 test("formatPlaces tolerates a place with no location", () => {
   const [place] = formatPlaces([{ displayName: { text: "Somewhere" } }], CT_HUB_2);
   assert.equal(place.distance_m, null);
+});
+
+test("formatPriceLevel maps Places enums to plain words", () => {
+  assert.equal(formatPriceLevel("PRICE_LEVEL_INEXPENSIVE"), "cheap");
+  assert.equal(formatPriceLevel("PRICE_LEVEL_MODERATE"), "moderate");
+  assert.equal(formatPriceLevel("PRICE_LEVEL_UNSPECIFIED"), null);
+  assert.equal(formatPriceLevel(undefined), null);
+});
+
+test("formatPriceRange handles closed and open-ended ranges", () => {
+  assert.equal(
+    formatPriceRange({
+      startPrice: { currencyCode: "SGD", units: "10" },
+      endPrice: { currencyCode: "SGD", units: "20" },
+    }),
+    "SGD 10-20",
+  );
+  assert.equal(
+    formatPriceRange({ startPrice: { currencyCode: "SGD", units: "50" } }),
+    "SGD 50+",
+  );
+  assert.equal(formatPriceRange(undefined), null);
+});
+
+test("formatReviewSnippets keeps up to three trimmed, truncated texts", () => {
+  const long = "a".repeat(250);
+  const reviews = [
+    { text: { text: "  The laksa is shiok.  " } },
+    { text: { text: "" } },
+    { originalText: { text: "Char siew very good" } },
+    { text: { text: long } },
+    { text: { text: "Fourth one, should be dropped" } },
+  ];
+
+  const snippets = formatReviewSnippets(reviews);
+  assert.equal(snippets.length, 3);
+  assert.equal(snippets[0], "The laksa is shiok.");
+  assert.equal(snippets[1], "Char siew very good");
+  assert.equal(snippets[2], `${"a".repeat(200)}...`);
+  assert.deepEqual(formatReviewSnippets(undefined), []);
 });

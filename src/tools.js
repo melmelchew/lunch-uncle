@@ -10,7 +10,9 @@
 export const CT_HUB_2 = { latitude: 1.3115, longitude: 103.8615 };
 
 const SEARCH_RADIUS_METRES = 800;
-const MAX_PLACES = 10;
+const MAX_PLACES = 6;
+const MAX_REVIEW_SNIPPETS = 3;
+const REVIEW_SNIPPET_CHARS = 200;
 const FORECAST_AREA = "Kallang";
 
 const PLACES_URL = "https://places.googleapis.com/v1/places:searchText";
@@ -28,7 +30,7 @@ export const toolDefinitions = [
     function: {
       name: "find_lunch_places",
       description:
-        "Search for places to eat near CT Hub 2. Returns name, rating, distance and whether it is open now.",
+        "Search for places to eat near CT Hub 2. Returns name, rating, distance, whether it is open now, price level and range, a short description, and snippets from recent reviews.",
       parameters: {
         type: "object",
         properties: {
@@ -116,7 +118,8 @@ async function findLunchPlaces({ query, open_now = false }, env) {
       "content-type": "application/json",
       "X-Goog-Api-Key": env.GOOGLE_PLACES_API_KEY,
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.currentOpeningHours",
+        "places.id,places.displayName,places.location,places.rating,places.currentOpeningHours," +
+        "places.priceLevel,places.priceRange,places.editorialSummary,places.reviews",
     },
     body: JSON.stringify(body),
   });
@@ -133,16 +136,62 @@ async function findLunchPlaces({ query, open_now = false }, env) {
  * Shape Places API results into the fields Uncle needs.
  */
 export function formatPlaces(places, origin) {
-  return places.map(
-    ({ displayName, rating, location, currentOpeningHours }) => ({
-      name: displayName?.text ?? "Unnamed",
-      rating: rating ?? null,
-      distance_m: location
-        ? Math.round(haversineMetres(origin, location))
-        : null,
-      open_now: currentOpeningHours?.openNow ?? null,
-    }),
-  );
+  return places.map((place) => ({
+    name: place.displayName?.text ?? "Unnamed",
+    rating: place.rating ?? null,
+    distance_m: place.location
+      ? Math.round(haversineMetres(origin, place.location))
+      : null,
+    open_now: place.currentOpeningHours?.openNow ?? null,
+    price_level: formatPriceLevel(place.priceLevel),
+    price_range: formatPriceRange(place.priceRange),
+    description: place.editorialSummary?.text ?? null,
+    review_snippets: formatReviewSnippets(place.reviews),
+  }));
+}
+
+const PRICE_LEVELS = {
+  PRICE_LEVEL_FREE: "free",
+  PRICE_LEVEL_INEXPENSIVE: "cheap",
+  PRICE_LEVEL_MODERATE: "moderate",
+  PRICE_LEVEL_EXPENSIVE: "expensive",
+  PRICE_LEVEL_VERY_EXPENSIVE: "very expensive",
+};
+
+/**
+ * Turn a Places priceLevel enum into a plain word, or null if unknown.
+ */
+export function formatPriceLevel(priceLevel) {
+  return PRICE_LEVELS[priceLevel] ?? null;
+}
+
+/**
+ * Turn a Places priceRange into text like "SGD 10-20" or "SGD 50+".
+ */
+export function formatPriceRange(priceRange) {
+  const start = priceRange?.startPrice;
+  if (!start?.units) {
+    return null;
+  }
+  const currency = start.currencyCode ?? "";
+  const end = priceRange.endPrice?.units;
+  const amount = end ? `${start.units}-${end}` : `${start.units}+`;
+  return `${currency} ${amount}`.trim();
+}
+
+/**
+ * Keep a few short review texts so Uncle can mention dishes people talk about.
+ */
+export function formatReviewSnippets(reviews) {
+  return (reviews ?? [])
+    .map((r) => (r.text?.text ?? r.originalText?.text ?? "").trim())
+    .filter(Boolean)
+    .slice(0, MAX_REVIEW_SNIPPETS)
+    .map((text) =>
+      text.length > REVIEW_SNIPPET_CHARS
+        ? `${text.slice(0, REVIEW_SNIPPET_CHARS).trimEnd()}...`
+        : text,
+    );
 }
 
 /**

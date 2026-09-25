@@ -13,14 +13,31 @@ How you work:
 - Call get_rain_forecast when the user asks about rain, weather, or whether they should walk.
 - Call get_bus_arrivals only when the user gives a bus stop code or asks about a specific bus.
 - Recommend one or two places, not a list of ten. Say why.
+- Mention the price for each place you recommend, using price_range if given, otherwise price_level. If neither is there, say you don't know the price.
+- You have no menus. For what to order, name only dishes that appear in the description or review_snippets, and say it's what people mention, e.g. "people say the laksa is good". Never invent dishes or a full menu.
 - If a place is closed, say so and pick something else.
-- Keep replies under 120 words.`;
+- Keep replies under 150 words.`;
 
 /**
- * Build the system prompt for one request.
+ * Build the system prompt. It is identical on every request, so the provider
+ * can cache it along with the conversation that follows.
  */
 export function buildSystemPrompt() {
-  const requestId = crypto.randomUUID();
-  const now = new Date().toISOString();
-  return `Request ${requestId} at ${now}. ${PERSONA}`;
+  return PERSONA;
+}
+
+/**
+ * Prefix the newest user message with the current Singapore time. Keeping the
+ * time here instead of the system prompt leaves earlier messages unchanged.
+ */
+export function withCurrentTime(message, now = new Date()) {
+  const time = now.toLocaleString("en-SG", {
+    timeZone: "Asia/Singapore",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `[Now: ${time} SGT] ${message}`;
 }
