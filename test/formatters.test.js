@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  CT_HUB_2,
+  formatPlaces,
   formatForecast,
   formatBusArrivals,
   haversineMetres,
@@ -54,4 +56,33 @@ test("haversineMetres measures CT Hub 2 to Lavender MRT at under 600 m", () => {
   const lavenderMrt = { latitude: 1.3073, longitude: 103.8631 };
   const distance = haversineMetres(ctHub2, lavenderMrt);
   assert.ok(distance > 400 && distance < 550, `got ${distance}`);
+});
+
+test("formatPlaces measures distance from CT Hub 2 and reports open_now", () => {
+  const places = [
+    {
+      displayName: { text: "Near Lavender MRT" },
+      rating: 4.1,
+      location: { latitude: 1.3073, longitude: 103.8631 },
+      currentOpeningHours: { openNow: false },
+    },
+    {
+      displayName: { text: "Bedok 85 Fengshan" },
+      location: { latitude: 1.3325, longitude: 103.939 },
+    },
+  ];
+
+  const [near, bedok] = formatPlaces(places, CT_HUB_2);
+  assert.equal(near.name, "Near Lavender MRT");
+  assert.equal(near.rating, 4.1);
+  assert.equal(near.open_now, false);
+  assert.ok(near.distance_m > 400 && near.distance_m < 550, `got ${near.distance_m}`);
+  assert.equal(bedok.rating, null);
+  assert.equal(bedok.open_now, null);
+  assert.ok(bedok.distance_m > 8000, `got ${bedok.distance_m}`);
+});
+
+test("formatPlaces tolerates a place with no location", () => {
+  const [place] = formatPlaces([{ displayName: { text: "Somewhere" } }], CT_HUB_2);
+  assert.equal(place.distance_m, null);
 });
