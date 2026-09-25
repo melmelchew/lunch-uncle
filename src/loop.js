@@ -1,4 +1,5 @@
-import { buildSystemPrompt } from "./prompt.js";
+import { buildSystemPrompt, withCurrentTime } from "./prompt.js";
+import { trimHistory, sessionIdFrom } from "./history.js";
 import { toolDefinitions, executeTool } from "./tools.js";
 
 const LLM_BASE_URL = "https://opencode.ai/zen/go/v1";
@@ -13,8 +14,10 @@ const FALLBACK_REPLY = "Just go Berseh Food Centre lah.";
  * Run the agentic loop for one user turn and return Uncle's reply.
  *
  * history is the prior conversation as OpenAI-style {role, content} messages.
+ * Only the most recent part of it is sent to the model.
+ * conversationId, if valid, is reused as the session id across turns.
  */
-export async function runLoop(history, message, env) {
+export async function runLoop(history, message, env, conversationId) {
   // If the Places key is missing, Uncle cannot search, so give a safe answer.
   if (!env.GOOGLE_PLACES_API_KEY) {
     console.error("GOOGLE_PLACES_API_KEY is not set");
@@ -23,13 +26,13 @@ export async function runLoop(history, message, env) {
 
   const messages = [
     { role: "system", content: buildSystemPrompt() },
-    ...history,
-    { role: "user", content: message },
+    ...trimHistory(history),
+    { role: "user", content: withCurrentTime(message) },
   ];
 
-  // One session id per turn, shared by every model call in this loop run,
+  // One session id per conversation, shared by every model call across turns,
   // so the OpenCode Go endpoint can route and cache consistently.
-  const sessionId = crypto.randomUUID();
+  const sessionId = sessionIdFrom(conversationId);
 
   let round = 0;
   while (round < MAX_ROUNDS) {

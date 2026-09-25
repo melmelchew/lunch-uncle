@@ -10,7 +10,7 @@
 export const CT_HUB_2 = { latitude: 1.3115, longitude: 103.8615 };
 
 const SEARCH_RADIUS_METRES = 800;
-const MAX_PLACES = 10;
+const MAX_PLACES = 6;
 const MAX_REVIEW_SNIPPETS = 3;
 const REVIEW_SNIPPET_CHARS = 200;
 const FORECAST_AREA = "Kallang";

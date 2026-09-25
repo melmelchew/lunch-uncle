@@ -19,10 +19,25 @@ How you work:
 - Keep replies under 150 words.`;
 
 /**
- * Build the system prompt for one request.
+ * Build the system prompt. It is identical on every request, so the provider
+ * can cache it along with the conversation that follows.
  */
 export function buildSystemPrompt() {
-  const requestId = crypto.randomUUID();
-  const now = new Date().toISOString();
-  return `Request ${requestId} at ${now}. ${PERSONA}`;
+  return PERSONA;
+}
+
+/**
+ * Prefix the newest user message with the current Singapore time. Keeping the
+ * time here instead of the system prompt leaves earlier messages unchanged.
+ */
+export function withCurrentTime(message, now = new Date()) {
+  const time = now.toLocaleString("en-SG", {
+    timeZone: "Asia/Singapore",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `[Now: ${time} SGT] ${message}`;
 }
